@@ -6,7 +6,7 @@ pub mod add;
 pub mod list;
 pub mod remove;
 
-#[derive(Serialize, Deserialize, Clone, FromRow)]
+#[derive(Serialize, Deserialize, Clone, FromRow, PartialEq)]
 pub struct Friend {
     pub login: String,
     pub added_at: DateTime<Utc>,

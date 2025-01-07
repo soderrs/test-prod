@@ -1,7 +1,7 @@
-use crate::middlewares::authorize::User;
+use crate::{friends::Friend, middlewares::authorize::User};
 use axum::{extract::Path, response::IntoResponse, Extension, Json};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, SqlitePool};
+use sqlx::{FromRow, Row, SqlitePool};
 use std::env;
 
 #[derive(Debug, FromRow, Clone, Serialize, Deserialize)]
@@ -32,16 +32,42 @@ pub async fn profile_by_login(
             image: user.image,
         })
     } else {
-        sqlx::query_as(
+        let get_user = sqlx::query(
             r#"
-        SELECT * FROM users WHERE login = ? AND is_public = 1
+        SELECT * FROM users WHERE login = ?
         "#,
         )
         .bind(login.to_string())
         .fetch_optional(&pool)
         .await
         .unwrap()
+        .unwrap();
+
+        let get_user_friends: Vec<Friend> =
+            serde_json::from_str(get_user.get("friends")).unwrap_or_default();
+
+        if get_user_friends
+            .iter()
+            .find(|friend| friend.login == user.login)
+            .is_some()
+            || get_user.get("is_public")
+        {
+            return Json(Some(UserProfile {
+                login: get_user.get("login"),
+                email: get_user.get("email"),
+                country_code: get_user.get("country_code"),
+                is_public: get_user.get("is_public"),
+                phone: get_user.get("phone"),
+                image: get_user.get("image"),
+            }));
+        } else {
+            None
+        }
     };
 
-    Json(user_profile)
+    if user_profile.is_some() {
+        Json(user_profile)
+    } else {
+        Json(None)
+    }
 }
