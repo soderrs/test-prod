@@ -1,17 +1,17 @@
+use crate::{
+    auth::{register, sign_in},
+    countries,
+    me::{self, profile},
+    middlewares::{self, authorize::AppState},
+    profiles,
+};
 use axum::{
-    middleware,
+    middleware::{self},
     routing::{get, post},
     Router,
 };
 
-use crate::{
-    auth::{register, sign_in},
-    countries, me,
-    me::profile,
-    middlewares, profiles,
-};
-
-pub async fn app() -> Router {
+pub async fn app(state: AppState) -> Router {
     Router::new()
         .route("/", get(crate::root))
         .route("/ping", get(crate::ping))
@@ -22,23 +22,31 @@ pub async fn app() -> Router {
         .route(
             "/me/profile",
             get(profile::get_profile)
-                .layer(middleware::from_fn(
+                .route_layer(middleware::from_fn_with_state(
+                    state.clone(),
                     middlewares::authorize::authorize_middleware,
                 ))
+                // .with_state(state.clone())
+                // .layer(middleware::from_fn(middlewares::authorize::check_token))
                 .patch(profile::update_profile)
-                .layer(middleware::from_fn(
+                .layer(middleware::from_fn_with_state(
+                    state.clone(),
                     middlewares::authorize::authorize_middleware,
-                )),
+                )), // .with_state(state.clone()),
         )
         .route(
             "/me/updatePassword",
-            post(me::update_password::update_password).layer(middleware::from_fn(
-                middlewares::authorize::authorize_middleware,
-            )),
+            post(me::update_password::update_password)
+                .layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    middlewares::authorize::authorize_middleware,
+                ))
+                .with_state(state.clone()),
         )
         .route(
             "/profiles/{login}",
-            get(profiles::profile_by_login).layer(middleware::from_fn(
+            get(profiles::profile_by_login).layer(middleware::from_fn_with_state(
+                state.clone(),
                 middlewares::authorize::authorize_middleware,
             )),
         )

@@ -1,9 +1,9 @@
 use axum::{
     body::Body,
-    extract::{Json, Request},
-    http::{self, Response, StatusCode},
+    extract::{Json, Request, State},
+    http::{self, StatusCode},
     middleware::Next,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{Duration, Utc};
@@ -11,7 +11,11 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::{prelude::FromRow, sqlite::SqlitePool};
-use std::env;
+use std::{
+    collections::HashSet,
+    env,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
@@ -62,7 +66,13 @@ pub fn decode_jwt(jwt: String) -> Result<TokenData<Claims>, StatusCode> {
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[derive(Clone)]
+pub struct AppState {
+    pub revoked_tokens: Arc<Mutex<HashSet<String>>>,
+}
+
 pub async fn authorize_middleware(
+    State(state): State<AppState>,
     mut req: Request,
     next: Next,
 ) -> Result<Response<Body>, AuthError> {
@@ -94,6 +104,13 @@ pub async fn authorize_middleware(
             });
         }
     };
+
+    if state.revoked_tokens.lock().unwrap().contains(token) {
+        return Err(AuthError {
+            message: "Please sign in".to_string(),
+            status_code: StatusCode::UNAUTHORIZED,
+        });
+    }
 
     let user = match retrieve_user_by_login(&token_data.claims.login).await {
         Some(user) => user,

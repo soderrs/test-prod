@@ -1,15 +1,26 @@
+use std::{
+    collections::HashSet,
+    sync::{Arc, Mutex},
+};
+
+use middlewares::authorize::AppState;
+
 mod auth;
 mod countries;
 mod me;
 mod middlewares;
-mod routes;
 mod profiles;
+mod routes;
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    let app = routes::app().await;
+    let state = AppState {
+        revoked_tokens: Arc::new(Mutex::new(HashSet::new())),
+    };
+
+    let app = routes::app(state).await;
     let listener = tokio::net::TcpListener::bind("localhost:7878")
         .await
         .unwrap();

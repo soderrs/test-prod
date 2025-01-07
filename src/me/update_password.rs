@@ -1,5 +1,9 @@
-use crate::middlewares::authorize::{hash_password, verify_password, User};
-use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
+use crate::middlewares::authorize::{hash_password, verify_password, AppState, User};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Extension, Json};
+use axum_extra::{
+    extract::TypedHeader,
+    headers::{authorization::Bearer, Authorization},
+};
 use serde::Deserialize;
 use sqlx::sqlite::SqlitePool;
 use std::env;
@@ -12,7 +16,9 @@ pub struct UpdatePassword {
 
 pub async fn update_password(
     Extension(mut user): Extension<User>,
-    passwords: Json<UpdatePassword>,
+    State(state): State<AppState>,
+    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
+    Json(passwords): Json<UpdatePassword>,
 ) -> impl IntoResponse {
     if passwords.old_password == passwords.new_password {
         return Err(StatusCode::FORBIDDEN);
@@ -43,6 +49,10 @@ pub async fn update_password(
     .execute(&pool)
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let token = bearer.token().to_string();
+
+    state.revoked_tokens.lock().unwrap().insert(token);
 
     Ok(StatusCode::OK)
 }
