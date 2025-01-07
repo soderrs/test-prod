@@ -135,6 +135,7 @@ pub struct User {
     pub is_public: bool,
     pub phone: Option<String>,
     pub image: Option<String>,
+    pub friends: String,
 }
 
 pub async fn retrieve_user_by_login(login: &str) -> Option<User> {

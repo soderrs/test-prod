@@ -5,5 +5,6 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     is_public BOOLEAN NOT NULL,
     phone TEXT,
-    image TEXT
+    image TEXT,
+    friends JSON
 );

@@ -1,12 +1,12 @@
+use middlewares::authorize::AppState;
 use std::{
     collections::HashSet,
     sync::{Arc, Mutex},
 };
 
-use middlewares::authorize::AppState;
-
 mod auth;
 mod countries;
+mod friends;
 mod me;
 mod middlewares;
 mod profiles;
