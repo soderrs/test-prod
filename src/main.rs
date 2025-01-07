@@ -11,6 +11,7 @@ mod me;
 mod middlewares;
 mod profiles;
 mod routes;
+mod posts;
 
 #[tokio::main]
 async fn main() {
