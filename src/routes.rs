@@ -3,7 +3,7 @@ use crate::{
     friends::{self, list::list_friends},
     me,
     middlewares::{self, authorize::AppState},
-    profiles,
+    posts, profiles,
 };
 use axum::{
     middleware::{self},
@@ -65,6 +65,20 @@ pub async fn app(state: AppState) -> Router {
         .route(
             "/friends/remove",
             post(friends::remove::remove_friend).layer(middleware::from_fn_with_state(
+                state.clone(),
+                middlewares::authorize::authorize_middleware,
+            )),
+        )
+        .route(
+            "/posts/new",
+            post(posts::new::new_post).layer(middleware::from_fn_with_state(
+                state.clone(),
+                middlewares::authorize::authorize_middleware,
+            )),
+        )
+        .route(
+            "/posts/{post_id}",
+            get(posts::post_by_id::get_post_by_id).layer(middleware::from_fn_with_state(
                 state.clone(),
                 middlewares::authorize::authorize_middleware,
             )),

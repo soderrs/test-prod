@@ -22,7 +22,7 @@ pub async fn register_user(user: Json<CreateUser>) -> StatusCode {
 
     sqlx::query(
         r#"
-        INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
         "#,
     )
     .bind(&user.login)

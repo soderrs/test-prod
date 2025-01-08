@@ -6,5 +6,6 @@ CREATE TABLE users (
     is_public BOOLEAN NOT NULL,
     phone TEXT,
     image TEXT,
-    friends JSON
+    friends JSON,
+    posts JSON
 );
