@@ -27,7 +27,7 @@ pub async fn add_friend(
         serde_json::from_str(user_friends_row.get("friends")).unwrap_or_default();
     user_friends.push(Friend {
         login,
-        added_at: Utc::now(),
+        added_at: Utc::now().to_string(),
     });
     let user_friends_str = serde_json::to_string(&user_friends).unwrap();
 

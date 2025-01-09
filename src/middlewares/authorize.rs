@@ -17,6 +17,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::friends::Friend;
+
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
     exp: usize,
@@ -135,7 +137,7 @@ pub struct User {
     pub is_public: bool,
     pub phone: Option<String>,
     pub image: Option<String>,
-    pub friends: String,
+    pub friends: Option<sqlx::types::Json<Vec<Friend>>>,
     pub posts: String,
 }
 
