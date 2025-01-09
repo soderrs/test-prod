@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, types::Json};
 
+pub mod feed;
 pub mod new;
 pub mod post_by_id;
 

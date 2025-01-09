@@ -83,4 +83,18 @@ pub async fn app(state: AppState) -> Router {
                 middlewares::authorize::authorize_middleware,
             )),
         )
+        .route(
+            "/posts/feed/my",
+            get(posts::feed::feed_my).layer(middleware::from_fn_with_state(
+                state.clone(),
+                middlewares::authorize::authorize_middleware,
+            )),
+        )
+        .route(
+            "/posts/feed/{login}",
+            get(posts::feed::feed_user).layer(middleware::from_fn_with_state(
+                state.clone(),
+                middlewares::authorize::authorize_middleware,
+            )),
+        )
 }
