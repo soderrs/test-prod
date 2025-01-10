@@ -97,4 +97,18 @@ pub async fn app(state: AppState) -> Router {
                 middlewares::authorize::authorize_middleware,
             )),
         )
+        .route(
+            "/posts/{post_id}/like",
+            post(posts::like::like_post).layer(middleware::from_fn_with_state(
+                state.clone(),
+                middlewares::authorize::authorize_middleware,
+            )),
+        )
+        .route(
+            "/posts/{post_id}/dislike",
+            post(posts::dislike::dislike_post).layer(middleware::from_fn_with_state(
+                state.clone(),
+                middlewares::authorize::authorize_middleware,
+            )),
+        )
 }

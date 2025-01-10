@@ -2,7 +2,7 @@ use crate::{middlewares::authorize::User, posts::CreatePost, posts::Post};
 use axum::{response::IntoResponse, Extension, Json};
 use chrono::Utc;
 use sqlx::sqlite::SqlitePool;
-use std::env;
+use std::{collections::HashSet, env};
 
 pub async fn new_post(
     Extension(user): Extension<User>,
@@ -30,12 +30,14 @@ pub async fn new_post(
         created_at: Utc::now().to_string(),
         likes_count: 0,
         dislikes_count: 0,
+        liked_users: sqlx::types::Json(HashSet::new()),
+        disliked_users: sqlx::types::Json(HashSet::new()),
     };
 
     sqlx::query(
         r#"
         INSERT INTO posts (id, content, author, tags, created_at, likes_count, dislikes_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(post.id)
@@ -45,6 +47,8 @@ pub async fn new_post(
     .bind(post.created_at.to_string())
     .bind(post.likes_count)
     .bind(post.dislikes_count)
+    .bind(post.liked_users)
+    .bind(post.disliked_users)
     .execute(&pool)
     .await
     .unwrap();

@@ -1,12 +1,12 @@
 use crate::{friends::Friend, middlewares::authorize::User, posts::Post};
-use axum::{extract::Path, response::IntoResponse, Extension, Json};
+use axum::{extract::Path, Extension, Json};
 use sqlx::SqlitePool;
 use std::env;
 
 pub async fn get_post_by_id(
     Extension(user): Extension<User>,
     Path(post_id): Path<String>,
-) -> impl IntoResponse {
+) -> Json<Option<Post>> {
     let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
         .await
         .unwrap();
