@@ -1,5 +1,8 @@
-use crate::middlewares::authorize::{hash_password, verify_password, AppState, User};
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Extension, Json};
+use crate::{
+    auth::User,
+    middlewares::authorize::{hash_password, verify_password, AppState},
+};
+use axum::{extract::State, http::StatusCode, Extension, Json};
 use axum_extra::{
     extract::TypedHeader,
     headers::{authorization::Bearer, Authorization},
@@ -19,13 +22,13 @@ pub async fn update_password(
     State(state): State<AppState>,
     TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
     Json(passwords): Json<UpdatePassword>,
-) -> impl IntoResponse {
+) -> Result<(), StatusCode> {
     if passwords.old_password == passwords.new_password {
         return Err(StatusCode::FORBIDDEN);
     } else if !verify_password(&passwords.old_password, &user.password_hash)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     {
-        return Err(StatusCode::UNAUTHORIZED);
+        return Err(StatusCode::FORBIDDEN);
     }
 
     let new_password_hash =
@@ -33,9 +36,11 @@ pub async fn update_password(
 
     user.password_hash = new_password_hash;
 
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+    let pool = SqlitePool::connect(
+        &env::var("DATABASE_URL").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     sqlx::query(
         r#"
@@ -52,7 +57,11 @@ pub async fn update_password(
 
     let token = bearer.token().to_string();
 
-    state.revoked_tokens.lock().unwrap().insert(token);
+    state
+        .revoked_tokens
+        .lock()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .insert(token);
 
-    Ok(StatusCode::OK)
+    Ok(())
 }

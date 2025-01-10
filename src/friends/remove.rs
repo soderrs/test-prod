@@ -1,15 +1,17 @@
-use crate::{friends::Friend, middlewares::authorize::User};
-use axum::{response::IntoResponse, Extension, Json};
+use crate::{auth::User, friends::Friend};
+use axum::{http::StatusCode, Extension, Json};
 use sqlx::{sqlite::SqlitePool, Row};
 use std::env;
 
 pub async fn remove_friend(
     Extension(user): Extension<User>,
     Json(login): Json<String>,
-) -> impl IntoResponse {
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+) -> Result<(), StatusCode> {
+    let pool = SqlitePool::connect(
+        &env::var("DATABASE_URL").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let user_friends_row = sqlx::query(
         r#"
@@ -17,21 +19,25 @@ pub async fn remove_friend(
         "#,
     )
     .bind(&user.login)
-    .fetch_optional(&pool)
+    .fetch_one(&pool)
     .await
-    .unwrap()
-    .unwrap();
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut user_friends: Vec<Friend> =
         serde_json::from_str(user_friends_row.get("friends")).unwrap_or_default();
 
-    let idx = user_friends
+    let idx = if let Some(i) = user_friends
         .iter()
         .rposition(|friend| friend.login == login)
-        .unwrap();
+    {
+        i
+    } else {
+        return Err(StatusCode::NOT_FOUND);
+    };
 
     user_friends.remove(idx);
-    let user_friends_str = serde_json::to_string(&user_friends).unwrap();
+    let user_friends_str =
+        serde_json::to_string(&user_friends).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     sqlx::query(
         r#"
@@ -44,5 +50,7 @@ pub async fn remove_friend(
     .bind(user.login)
     .execute(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(())
 }

@@ -11,19 +11,19 @@ pub struct Country {
     region: String,
 }
 
-pub async fn countries() -> (StatusCode, Json<Vec<Country>>) {
+pub async fn countries() -> Result<Json<Vec<Country>>, StatusCode> {
     let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
         .await
         .unwrap();
     let countries: Vec<Country> = sqlx::query_as("SELECT * FROM countries;")
         .fetch_all(&pool)
         .await
-        .unwrap();
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    (StatusCode::OK, Json::from(countries))
+    Ok(Json::from(countries))
 }
 
-pub async fn country_by_id(alpha2: Path<String>) -> (StatusCode, Json<Country>) {
+pub async fn country_by_id(alpha2: Path<String>) -> Result<Json<Country>, StatusCode> {
     let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
         .await
         .unwrap();
@@ -36,6 +36,7 @@ pub async fn country_by_id(alpha2: Path<String>) -> (StatusCode, Json<Country>) 
     .bind(alpha2.to_string())
     .fetch_one(&pool)
     .await
-    .unwrap();
-    (StatusCode::OK, Json::from(country))
+    .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    Ok(Json::from(country))
 }

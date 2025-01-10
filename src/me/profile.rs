@@ -1,10 +1,10 @@
-use crate::{middlewares::authorize::User, profiles::UserProfile};
-use axum::{response::IntoResponse, Extension, Json};
+use crate::{auth::User, profiles::UserProfile};
+use axum::{http::StatusCode, Extension, Json};
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, sqlite::SqlitePool};
 use std::env;
 
-pub async fn get_profile(Extension(user): Extension<User>) -> impl IntoResponse {
+pub async fn get_profile(Extension(user): Extension<User>) -> Json<UserProfile> {
     let user_profile = UserProfile {
         login: user.login,
         email: user.email,
@@ -30,10 +30,12 @@ pub struct UpdateUser {
 pub async fn update_profile(
     Extension(mut old_user): Extension<User>,
     new_user: Json<UpdateUser>,
-) -> impl IntoResponse {
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+) -> Result<Json<UserProfile>, StatusCode> {
+    let pool = SqlitePool::connect(
+        &env::var("DATABASE_URL").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let old_login = old_user.login.clone();
     old_user.login = new_user.login.clone().unwrap_or(old_user.login);
@@ -65,7 +67,16 @@ pub async fn update_profile(
     .bind(old_login)
     .execute(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Json(..old_user)
+    let user_profile = UserProfile {
+        login: old_user.login,
+        email: old_user.email,
+        country_code: old_user.country_code,
+        is_public: old_user.is_public,
+        phone: old_user.phone,
+        image: old_user.image,
+    };
+
+    Ok(Json(user_profile))
 }

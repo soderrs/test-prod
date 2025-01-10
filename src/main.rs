@@ -9,9 +9,9 @@ mod countries;
 mod friends;
 mod me;
 mod middlewares;
+mod posts;
 mod profiles;
 mod routes;
-mod posts;
 
 #[tokio::main]
 async fn main() {
@@ -29,10 +29,6 @@ async fn main() {
     println!("listening on {}", listener.local_addr().unwrap());
 
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn root() -> &'static str {
-    "<h1>Hello, World!</h1"
 }
 
 async fn ping() -> &'static str {

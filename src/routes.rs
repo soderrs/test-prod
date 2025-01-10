@@ -13,7 +13,6 @@ use axum::{
 
 pub async fn app(state: AppState) -> Router {
     Router::new()
-        .route("/", get(crate::root))
         .route("/ping", get(crate::ping))
         .route("/countries", get(countries::countries))
         .route("/countries/{alpha2}", get(countries::country_by_id))

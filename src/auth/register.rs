@@ -15,10 +15,12 @@ pub struct CreateUser {
     pub image: Option<String>,
 }
 
-pub async fn register_user(user: Json<CreateUser>) -> StatusCode {
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+pub async fn register_user(user: Json<CreateUser>) -> Result<(), StatusCode> {
+    let pool = SqlitePool::connect(
+        &env::var("DATABASE_URL").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     sqlx::query(
         r#"
@@ -34,7 +36,7 @@ pub async fn register_user(user: Json<CreateUser>) -> StatusCode {
     .bind(&user.image)
     .execute(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    StatusCode::CREATED
+    Ok(())
 }

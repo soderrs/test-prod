@@ -1,5 +1,5 @@
-use crate::{middlewares::authorize::User, posts::CreatePost, posts::Post};
-use axum::{response::IntoResponse, Extension, Json};
+use crate::{auth::User, posts::CreatePost, posts::Post};
+use axum::{http::StatusCode, Extension, Json};
 use chrono::Utc;
 use sqlx::sqlite::SqlitePool;
 use std::{collections::HashSet, env};
@@ -7,10 +7,12 @@ use std::{collections::HashSet, env};
 pub async fn new_post(
     Extension(user): Extension<User>,
     Json(create_post): Json<CreatePost>,
-) -> impl IntoResponse {
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+) -> Result<StatusCode, StatusCode> {
+    let pool = SqlitePool::connect(
+        &env::var("DATABASE_URL").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let user_posts: Vec<Post> = sqlx::query_as(
         r#"
@@ -20,7 +22,7 @@ pub async fn new_post(
     .bind(&user.login)
     .fetch_all(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let post = Post {
         id: format!("{}_{}", &user.login, user_posts.len()),
@@ -36,7 +38,7 @@ pub async fn new_post(
 
     sqlx::query(
         r#"
-        INSERT INTO posts (id, content, author, tags, created_at, likes_count, dislikes_count)
+        INSERT INTO posts
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
@@ -51,5 +53,7 @@ pub async fn new_post(
     .bind(post.disliked_users)
     .execute(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::CREATED)
 }

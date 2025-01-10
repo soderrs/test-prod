@@ -1,3 +1,4 @@
+use crate::auth::User;
 use axum::{
     body::Body,
     extract::{Json, Request, State},
@@ -10,14 +11,12 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sqlx::{prelude::FromRow, sqlite::SqlitePool};
+use sqlx::sqlite::SqlitePool;
 use std::{
     collections::HashSet,
     env,
     sync::{Arc, Mutex},
 };
-
-use crate::friends::Friend;
 
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
@@ -38,6 +37,15 @@ impl IntoResponse for AuthError {
         }));
 
         (self.status_code, body).into_response()
+    }
+}
+
+impl From<StatusCode> for AuthError {
+    fn from(value: StatusCode) -> Self {
+        AuthError {
+            message: String::new(),
+            status_code: value,
+        }
     }
 }
 
@@ -107,7 +115,12 @@ pub async fn authorize_middleware(
         }
     };
 
-    if state.revoked_tokens.lock().unwrap().contains(token) {
+    if state
+        .revoked_tokens
+        .lock()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .contains(token)
+    {
         return Err(AuthError {
             message: "Please sign in".to_string(),
             status_code: StatusCode::UNAUTHORIZED,
@@ -126,19 +139,6 @@ pub async fn authorize_middleware(
 
     req.extensions_mut().insert(user);
     Ok(next.run(req).await)
-}
-
-#[derive(Debug, FromRow, Clone, Serialize, Deserialize)]
-pub struct User {
-    pub login: String,
-    pub email: String,
-    pub country_code: String,
-    pub password_hash: String,
-    pub is_public: bool,
-    pub phone: Option<String>,
-    pub image: Option<String>,
-    pub friends: Option<sqlx::types::Json<Vec<Friend>>>,
-    pub posts: String,
 }
 
 pub async fn retrieve_user_by_login(login: &str) -> Option<User> {

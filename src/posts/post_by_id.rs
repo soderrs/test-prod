@@ -1,12 +1,12 @@
-use crate::{friends::Friend, middlewares::authorize::User, posts::Post};
-use axum::{extract::Path, Extension, Json};
+use crate::{auth::User, friends::Friend, posts::Post};
+use axum::{extract::Path, http::StatusCode, Extension, Json};
 use sqlx::SqlitePool;
 use std::env;
 
 pub async fn get_post_by_id(
     Extension(user): Extension<User>,
     Path(post_id): Path<String>,
-) -> Json<Option<Post>> {
+) -> Result<Json<Post>, StatusCode> {
     let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
         .await
         .unwrap();
@@ -20,7 +20,7 @@ pub async fn get_post_by_id(
     .bind(post_id)
     .fetch_one(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::NOT_FOUND)?;
 
     let author_user: User = sqlx::query_as(
         r#"
@@ -30,7 +30,7 @@ pub async fn get_post_by_id(
     .bind(&post.author)
     .fetch_one(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let author_friends: Vec<Friend> = author_user.friends.unwrap_or(sqlx::types::Json(vec![])).0;
 
@@ -39,12 +39,12 @@ pub async fn get_post_by_id(
         .find(|friend| &friend.login == &user.login)
         .is_some()
     {
-        return Json(Some(post));
+        return Ok(Json(post));
     } else if author_user.is_public {
-        Json(Some(post))
+        Ok(Json(post))
     } else if user.login == author_user.login {
-        Json(Some(post))
+        Ok(Json(post))
     } else {
-        Json(None)
+        Err(StatusCode::NOT_FOUND)
     }
 }

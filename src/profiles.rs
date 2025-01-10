@@ -1,4 +1,4 @@
-use crate::{friends::Friend, middlewares::authorize::User};
+use crate::{auth::User, friends::Friend};
 use axum::{extract::Path, response::IntoResponse, Extension, Json};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Row, SqlitePool};

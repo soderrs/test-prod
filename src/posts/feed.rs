@@ -1,13 +1,15 @@
 use super::Post;
-use crate::middlewares::authorize::User;
-use axum::{extract::Path, response::IntoResponse, Extension, Json};
+use crate::auth::User;
+use axum::{extract::Path, http::StatusCode, Extension, Json};
 use sqlx::SqlitePool;
 use std::env;
 
-pub async fn feed_my(Extension(user): Extension<User>) -> impl IntoResponse {
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+pub async fn feed_my(Extension(user): Extension<User>) -> Result<Json<Vec<Post>>, StatusCode> {
+    let pool = SqlitePool::connect(
+        &env::var("DATABASE_URL").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let posts: Vec<Post> = sqlx::query_as(
         r#"
@@ -17,18 +19,20 @@ pub async fn feed_my(Extension(user): Extension<User>) -> impl IntoResponse {
     .bind(&user.login)
     .fetch_all(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Json(posts)
+    Ok(Json(posts))
 }
 
 pub async fn feed_user(
     Extension(user): Extension<User>,
     Path(login): Path<String>,
-) -> impl IntoResponse {
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+) -> Result<Json<Option<Vec<Post>>>, StatusCode> {
+    let pool = SqlitePool::connect(
+        &env::var("DATABASE_URL").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let user_from_login: User = sqlx::query_as(
         r#"
@@ -38,7 +42,7 @@ pub async fn feed_user(
     .bind(&login)
     .fetch_one(&pool)
     .await
-    .unwrap();
+    .map_err(|_| StatusCode::NOT_FOUND)?;
 
     if user_from_login.is_public
         || user_from_login
@@ -56,10 +60,10 @@ pub async fn feed_user(
         .bind(login)
         .fetch_all(&pool)
         .await
-        .unwrap();
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        Json(Some(posts))
+        Ok(Json(Some(posts)))
     } else {
-        Json(None)
+        Ok(Json(None))
     }
 }
